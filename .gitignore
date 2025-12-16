@@ -58,3 +58,6 @@ temp/
 *.tmp
 .playwright-mcp/
 .claude/
+
+# Node.js
+node_modules/
