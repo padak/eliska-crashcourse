@@ -8,7 +8,7 @@ Vytvorit Claude Code skill, ktery:
 
 ---
 
-## Struktura Skillu
+## Struktura Skills
 
 ```
 ~/.claude/skills/prd-validator/
