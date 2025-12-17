@@ -1,103 +1,227 @@
-# Plan: PRD Validator Skill pro Claude Code
+# Plan: PRD Workflow Kit pro Keboola
 
 ## Cil
-Vytvorit Claude Code skill, ktery:
-1. Validuje PRD produktovych manazeru podle interniho standardu (docs/michal_jerabek.pdf)
-2. Interaktivne vede PM pri doplneni chybejicich informaci
-3. Vytvori Linear Project + Issue s PRD
+
+Vytvorit kompletni workflow pro Product Managery v Keboole:
+1. **Agent** ktery provadi PM od napadu k hotovemu PRD (product research + drafting)
+2. **Skill** ktery umoznuje submission do Linearu
+3. **Onboarding** pro nove PM (instalace, Linear MCP setup)
 
 ---
 
-## Struktura Skills
+## Architektura
 
 ```
-~/.claude/skills/prd-validator/
-├── SKILL.md                    # Hlavni skill soubor
-└── references/
-    ├── prd-template.md         # Kompletni PRD sablona
-    └── validation-checklist.md # Validacni pravidla
+Eliska-crashcourse/
+├── prd-workflow/
+│   ├── INSTALL.md                    # Onboarding instrukce pro PM
+│   ├── agents/
+│   │   └── keboola-prd-coach.md      # Hlavni agent - provazi PM celym workflow
+│   └── skills/
+│       └── prd-linear/
+│           ├── SKILL.md              # Linear submission skill
+│           └── references/
+│               ├── prd-template.md   # Keboola PRD sablona
+│               └── keboola-context.md # Segmenty, metriky, terminologie
+├── scripts/
+│   └── install-prd-workflow.sh       # Instalacni script
+└── docs/
+    └── michal_jerabek.md             # Zdroj PRD sablony (konvertovano z PDF)
 ```
+
+### Proc tato architektura?
+
+| Puvodni plan | Novy plan |
+|--------------|-----------|
+| Jeden monoliticky skill | Agent (mysli) + Skill (kona) |
+| PM ridi workflow manualne | Agent provazi PM automaticky |
+| Zacina validaci | Zacina product researchem |
+| Skill v ~/.claude | Repo + install script |
 
 ---
 
-## Soubory k vytvoreni
+## Komponenty
 
-### 1. ~/.claude/skills/prd-validator/SKILL.md
+### 1. Agent: keboola-prd-coach.md
 
-Hlavni skill obsahujici:
+**Umisteni:** `prd-workflow/agents/keboola-prd-coach.md`
+
+**Ucel:** Hlavni vstupni bod pro PM. Provazi celym procesem od napadu po Linear submission.
 
 **Frontmatter:**
 ```yaml
 ---
-name: prd-validator
-description: Validace a odeslani PRD do Linearu. Pouzij pri "create PRD", "validate PRD", "submit to Linear", "PRD review".
+name: keboola-prd-coach
+description: PRD coach pro Keboola PM. Pouzij pri "novy PRD", "feature idea", "product spec", "napiste PRD". Provazi od napadu pres research az po Linear submission.
+model: opus
 ---
 ```
 
-**Obsah:**
-- Prehled PRD sekci (Problem Alignment 1-4, Solution Alignment 5)
-- Workflow validace (checklist pro kazdou sekci)
-- Interaktivni otazky pro doplneni mezer
-- Linear submission flow (team selection -> create project -> create issue)
-- Formatovani PRD pro Linear description
+**Faze workflow:**
 
-### 2. ~/.claude/skills/prd-validator/references/prd-template.md
+```
+Faze 1: Discovery & Clarification
+├── Analyze PM's idea for gaps
+├── Ask 3-5 clarifying questions (grouped by category)
+├── Identify target segment (Enterprise / Multi-tenant / PAYG)
+└── Confirm: "Ready to research?"
 
-Kompletni PRD sablona s:
-- Vsemi 5 sekcemi a jejich podsekce
-- Priklady pro kazdy typ obsahu
-- Otazky ktere pomahaji PM vyplnit sekci
+Faze 2: Challenge & Exploration
+├── Identify implicit assumptions
+├── Ask "what-if" questions (stress-test)
+├── Research competitors / existing solutions (optional)
+└── Confirm: "Proceed to drafting?"
 
-### 3. ~/.claude/skills/prd-validator/references/validation-checklist.md
+Faze 3: PRD Drafting
+├── Draft each section using prd-template.md
+├── Validate against Keboola context (metrics, segments)
+├── Interactive gap-filling (cilene otazky)
+└── Confirm: "PRD ready for review?"
 
-Detailni validacni pravidla:
-- Co musi kazda sekce obsahovat
-- Jak poznat kvalitni vs. nedostatecny obsah
-- Caste chyby a jak je opravit
+Faze 4: Review & Polish
+├── Show complete PRD preview
+├── Check quality criteria (konkretni metriky, ne vague)
+├── PM approves or requests changes
+└── Confirm: "Submit to Linear?"
 
-**Konkretni validacni kriteria (NOVE):**
+Faze 5: Linear Submission
+├── Use prd-linear skill
+├── Select team, check duplicates
+├── Create Project + Issue
+└── Return URLs + next steps
+```
 
-| Sekce | Povinne elementy | Kvalitativni kontrola |
-|-------|------------------|----------------------|
-| Problem Definition | User/Business/Strategic Impact, NOT solving | Konkretni problem, ne vague |
-| High-Level Approach | Popis reseni, scope | Musi navazovat na problem |
-| Success Metrics | Min. 1 kategorie metrik | Konkretni cisla, ne "zlepsit" |
-| Baseline | Aktualni hodnoty NEBO duvod absence | Link na dashboard pokud existuje |
-| Key Features | V1 breakdown, NOT building | Jasne milestones |
+**Klicove vlastnosti:**
+- Zna Keboola kontext (Enterprise vs PAYG vs Multi-tenant)
+- Challenge assumptions - neni "yes-man"
+- Konkretni priklady z Keboola prostredi
+- Automaticky vola skill pro Linear (PM nemusi vedet ze existuje)
 
 ---
 
-## PRD Sekce (z docs/michal_jerabek.pdf)
+### 2. Skill: prd-linear
+
+**Umisteni:** `prd-workflow/skills/prd-linear/`
+
+**Ucel:** Helper skill pro Linear operace. PM ho nevola primo - agent ho pouziva v Fazi 5.
+
+**SKILL.md Frontmatter:**
+```yaml
+---
+name: prd-linear
+description: Linear submission pro Keboola PRD. Vytvori Project + Issue s PRD v description. Pouzivano agentem keboola-prd-coach.
+---
+```
+
+**Obsah SKILL.md:**
+- Linear MCP tools reference
+- Project/Issue payload schema
+- Error handling pravidla
+- PRD markdown format pro description
+
+**references/prd-template.md:**
+- Kompletni PRD struktura (5 sekci)
+- Priklady pro kazdy typ obsahu
+- Validacni kriteria
+
+**references/keboola-context.md:**
+- Segment definitions (Enterprise, Multi-tenant, PAYG)
+- Typicke metriky pro kazdy segment
+- User personas (data engineers, developers, business users)
+- Terminologie
+
+---
+
+### 3. Onboarding: INSTALL.md
+
+**Umisteni:** `prd-workflow/INSTALL.md`
+
+**Obsah:**
+
+```markdown
+# PRD Workflow Kit - Instalace
+
+## Predpoklady
+- Claude Code (nainstalovan a funkcni)
+- Pristup do firemniho Linearu
+
+## Krok 1: Instalace Linear MCP
+
+```bash
+claude mcp add --transport sse linear-server https://mcp.linear.app/sse
+```
+
+Pak spust Claude Code a zadej `/mcp` pro autorizaci pres Linear OAuth.
+
+## Krok 2: Instalace PRD Workflow
+
+```bash
+# Naklonuj repo do /tmp
+git clone https://github.com/keboola/prd-workflow-kit /tmp/prd-workflow-kit
+
+# Spust instalaci
+/tmp/prd-workflow-kit/scripts/install-prd-workflow.sh
+```
+
+Nebo manualne:
+```bash
+# Zkopiruj agenta
+cp /tmp/prd-workflow-kit/prd-workflow/agents/*.md ~/.claude/agents/
+
+# Zkopiruj skill
+cp -r /tmp/prd-workflow-kit/prd-workflow/skills/prd-linear ~/.claude/skills/
+```
+
+## Krok 3: Overeni
+
+Spust Claude Code a rekni:
+> "Mam napad na novou feature - chci vytvorit PRD"
+
+Agent keboola-prd-coach by se mel aktivovat.
+
+## Alternativa: Keboola Claude Kit Plugin
+
+Pokud pouzivas firemni Claude Kit, PRD workflow bude dostupny jako plugin:
+```bash
+/plugin marketplace add keboola/claude-kit
+/plugin install product-manager
+```
+(Tato varianta zatim neni implementovana)
+```
+
+---
+
+## PRD Struktura (z michal_jerabek.pdf)
 
 ### PROBLEM ALIGNMENT
 
 **1. Problem Definition**
 - Problem/opportunity description
 - User Impact (data engineers, developers, business users)
-- Business Impact (enterprise retention, multi-tenant, PAYG)
+- Business Impact (Enterprise retention, Multi-tenant, PAYG)
 - Strategic Alignment
-- Co NERESIME
+- What we're NOT solving
 
 **2. High-Level Approach**
-- Strucny popis reseni
+- Solution overview
 - Scope indication
 
 **3. Success Metrics**
-- Enterprise metriky (adoption, DX, retention)
-- Multi-Tenant/PAYG metriky (registration, engagement, monetization)
-- Platform Performance metriky
-- Trade-off considerations
+- Enterprise: adoption, DX, retention
+- Multi-Tenant/PAYG: registration, engagement, monetization
+- Platform Performance
+- Trade-offs
 
 **4. Set the Baseline**
-- Aktualni hodnoty metrik (s date range)
+- Current metric values (with date range)
 - Trend (improving/declining/stable)
-- Link na dashboard
+- Dashboard link
 
 ### SOLUTION ALIGNMENT
 
 **5. Key Features**
-- Prehled co budujeme
-- Co NEbudujeme
+- What we're building (overview)
+- What we're NOT building
 - V1: Foundation / Quick Wins
 - V2: Feature Completeness (optional)
 - V3: Differentiation (optional)
@@ -105,215 +229,120 @@ Detailni validacni pravidla:
 
 ---
 
-## Workflow Skillu
+## Validacni Kriteria
 
-```
-1. PM spusti skill (prd-validator)
-   |
-2. Zjisti stav PRD:
-   - Existujici dokument? -> Analyzuj
-   - Od nuly? -> Provazej sekcemi
-   |
-3. Validace kazde sekce:
-   [x] Complete  [ ] Missing  [!] Incomplete
-   - Kontrola existence obsahu
-   - Kontrola kvality (viz validation-checklist.md)
-   |
-4. Interaktivne doplneni mezer:
-   - Cilene otazky pro chybejici casti
-   - Navrhy a KONKRETNI PRIKLADY z Keboola kontextu
-   |
-5. Finalni validace:
-   - Vsechny sekce OK? -> Pokracuj
-   - Ne? -> Zpet k doplneni
-   |
-6. PREVIEW pred odeslanim (NOVE):
-   - Zobrazit nazev projektu
-   - Zobrazit nazev issue
-   - Zobrazit strukturu PRD
-   - PM potvrdi nebo upravi
-   |
-7. Linear submission:
-   a) list_teams -> PM vybere team
-   b) Kontrola duplicit (existuje projekt se stejnym nazvem?)
-   c) create_project -> Novy projekt pro featuru
-   d) create_issue -> Issue s PRD v description
-   e) Error handling: pokud selze, zobraz chybu a nabidni retry
-   |
-8. Potvrzeni:
-   - URL projektu
-   - URL issue
-   - Dalsi kroky
-```
+| Sekce | Povinne | Kvalitativni kontrola |
+|-------|---------|----------------------|
+| Problem Definition | User + Business + Strategic Impact, NOT solving | Konkretni problem, ne vague |
+| High-Level Approach | Solution popis, scope | Musi navazovat na problem |
+| Success Metrics | Min. 1 kategorie metrik | Konkretni cisla, ne "zlepsit" |
+| Baseline | Aktualni hodnoty NEBO duvod absence | Link na dashboard pokud existuje |
+| Key Features | V1 breakdown, NOT building | Jasne milestones |
 
 ---
 
-## Linear MCP Tools Pouzite
+## Linear MCP Tools
 
 | Tool | Ucel |
 |------|------|
 | `mcp__linear-server__list_teams` | PM vybere cilovy team |
-| `mcp__linear-server__list_projects` | Kontrola duplicit pred vytvorenim |
+| `mcp__linear-server__list_projects` | Kontrola duplicit |
 | `mcp__linear-server__create_project` | Vytvori projekt pro featuru |
 | `mcp__linear-server__create_issue` | Vytvori issue s PRD |
-| `mcp__linear-server__list_issue_labels` | Zkontroluje existujici labels |
+| `mcp__linear-server__list_issue_labels` | Zkontroluje labels |
+
+### Project Payload
+```json
+{
+  "name": "[Nazev featury]",
+  "description": "PRD for [nazev] - created via PRD Workflow Kit",
+  "team": "[team ID]",
+  "state": "planned"
+}
+```
+
+### Issue Payload
+```json
+{
+  "title": "PRD: [Nazev featury]",
+  "description": "[PRD v markdown]",
+  "project": "[project ID]",
+  "team": "[team ID]",
+  "labels": ["PRD"]
+}
+```
 
 ---
 
-## Linear Payload Schema (NOVE)
-
-### Project
-```
-name: "[Nazev featury]"
-description: "PRD for [nazev] - created via prd-validator skill"
-team: [vybrane team ID]
-state: "planned"
-```
-
-### Issue
-```
-title: "PRD: [Nazev featury]"
-description: [Plny PRD v markdown - viz format nize]
-project: [ID vytvoreneho projektu]
-team: [vybrane team ID]
-labels: ["PRD"]
-```
-
----
-
-## Error Handling (NOVE)
+## Error Handling
 
 | Situace | Reakce |
 |---------|--------|
-| Linear API timeout | Retry 1x, pak nabidni ulozit PRD lokalne |
-| Projekt se stejnym nazvem existuje | Zeptat se: pouzit existujici nebo prejmenovat? |
-| Chybejici team permissions | Informovat PM, nabidnout jiny team |
-| PRD prilis dlouhe pro description | Zkratit na summary + odkaz na externi doc |
+| Linear MCP neni nainstalovan | Zobraz INSTALL.md instrukce |
+| Linear API timeout | Retry 1x, pak uloz PRD lokalne |
+| Projekt existuje | Zeptej se: pouzit existujici nebo prejmenovat? |
+| Chybejici permissions | Informuj PM, nabidni jiny team |
+| PRD prilis dlouhe | Zkrat na summary + link na doc |
 
 ---
 
-## Linear Issue Format
+## Gap-Filling Prompty (priklady)
 
-**Title:** `PRD: [Nazev Projektu]`
+**User Impact chybi:**
+> "Kteri uzivatele Kebooly jsou ovlivneni?
+> - Data engineers (pipelines, transformace, data quality)
+> - Developers (API, SDK, integrace)
+> - Business users (analyzy, reporty, dashboardy)
+>
+> Pro kazdeho: Jaky problem resi? Jak casto?"
 
-**Description (Markdown):**
-```markdown
-# PRD: [Nazev Projektu]
+**Metrics jsou vague:**
+> "Metrika 'zlepsit vykon' neni meritelna:
+> - AKTUALNI hodnota? (napr. job duration 45s)
+> - CILOVA hodnota? (napr. < 15s)
+> - Jak merit? (dashboard link)"
 
-## PROBLEM ALIGNMENT
-
-### 1. Problem Definition
-[obsah]
-
-#### User Impact
-[obsah]
-
-#### Business Impact
-[obsah]
-
-#### Strategic Alignment
-[obsah]
-
-#### What We're NOT Solving
-[obsah]
-
-### 2. High-Level Approach
-[obsah]
-
-### 3. Success Metrics
-[obsah]
-
-### 4. Baseline
-[obsah]
-
----
-
-## SOLUTION ALIGNMENT
-
-### 5. Key Features
-
-#### Overview
-[obsah]
-
-#### What We're NOT Building
-[obsah]
-
-#### V1: Foundation / Quick Wins
-[obsah]
-
-#### V2: Feature Completeness
-[obsah pokud relevant]
-
-#### V3: Differentiation
-[obsah pokud relevant]
-
-#### Decision Checkpoints
-[obsah]
-```
+**Baseline chybi:**
+> "Nemame baseline. Moznosti:
+> 1. Najit dashboard v Keboola telemetry
+> 2. Pridat instrumentaci jako V0 task
+> 3. Proxy metriky (support tickets, feedback)"
 
 ---
 
 ## Implementacni Kroky
 
-1. **Vytvorit adresarovou strukturu**
-   ```
-   mkdir -p ~/.claude/skills/prd-validator/references
-   ```
+### Faze 1: Priprava (tento repo)
+1. Konvertovat `docs/michal_jerabek.pdf` na `docs/michal_jerabek.md`
+2. Vytvorit adresarovou strukturu `prd-workflow/`
+3. Napsat `INSTALL.md`
 
-2. **Vytvorit SKILL.md** (~150 radku)
-   - Frontmatter s description a triggers
-   - Workflow instrukce
-   - Validacni logika
-   - Linear submission instrukce
+### Faze 2: Agent
+1. Napsat `agents/keboola-prd-coach.md`
+   - 5-fazovy workflow
+   - Keboola kontext
+   - Challenge mode
 
-3. **Vytvorit prd-template.md** (~200 radku)
-   - Kompletni sablona ze zdroje
-   - Priklady pro kazdy typ obsahu
-   - Pomocne otazky
+### Faze 3: Skill
+1. Vytvorit `skills/prd-linear/SKILL.md`
+2. Vytvorit `skills/prd-linear/references/prd-template.md`
+3. Vytvorit `skills/prd-linear/references/keboola-context.md`
 
-4. **Vytvorit validation-checklist.md** (~100 radku)
-   - Detailni pravidla pro kazdou sekci
-   - Required vs optional elementy
-   - Kvalitativni kriteria
+### Faze 4: Instalace
+1. Napsat `scripts/install-prd-workflow.sh`
+2. Otestovat na cistej instalaci
 
-5. **Otestovat skill**
-   - Spustit s testovaci PRD ideou
-   - Overit validaci
-   - Overit Linear vytvoreni
-
----
-
-## Gap-Filling Prompty (NOVE)
-
-Priklady cilovych otazek pro doplneni chybejicich sekci:
-
-**Problem Definition chybi User Impact:**
-> "Kteri uzivatele Kebooly jsou timto problemem ovlivneni?
-> - Data engineers (pipelines, data quality)
-> - Developers (API, integrace)
-> - Business users (analyzy, reporty)
->
-> Pro kazdeho zmineneho popiste: Jaky problem resi? Jak casto ho maji?"
-
-**Success Metrics jsou vague:**
-> "Metrika 'zlepsit vykon' neni meritelna. Konkretizujte:
-> - Jaka je AKTUALNI hodnota? (napr. job duration 45s)
-> - Jaka je CILOVA hodnota? (napr. job duration < 15s)
-> - Jak budete merit? (link na dashboard)"
-
-**Baseline chybi:**
-> "Nemame baseline data. Moznosti:
-> 1. Najit existujici dashboard v Keboola telemetry
-> 2. Pridat instrumentaci jako V0 task
-> 3. Pouzit proxy metriky (support tickets, user feedback)"
+### Faze 5: Testovani
+1. Test s realnym PRD napadem
+2. Overit agent workflow
+3. Overit Linear submission
+4. Iterace podle feedbacku
 
 ---
 
-## Poznamky
+## Budouci rozsireni
 
-- Linear MCP nepodporuje `create_document`, proto pouzivame Issue description
-- PM vybira team manualne (list_teams -> vyber)
-- Skill je user-level (~/.claude/skills/), tedy globalne dostupny
-- **Preview krok** pred Linear submission - PM vidi co se vytvori
-- **Duplicity** se kontroluji pres list_projects pred vytvorenim
-- **Error handling** zajistuje graceful degradation pri API chybach
+- **Claude Kit Plugin**: Zabalit jako `product-manager` plugin do keboola/claude-kit
+- **PRD Templates**: Ruzne sablony pro ruzne typy features (API, UI, Platform)
+- **Auto-linking**: Propojit PRD s existujicimi Linear issues
+- **Metrics Dashboard**: Automaticky vyhledat relevantni dashboardy v Keboola telemetry
